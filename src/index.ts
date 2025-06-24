@@ -2,8 +2,9 @@
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-function exec(cmd: string, opts: { cwd?: string } = {}): Promise<void> {
+export async function exec(cmd: string, opts: { cwd?: string } = {}): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, { shell: true, stdio: 'inherit', ...opts });
     child.on('close', (code) => {
@@ -13,7 +14,7 @@ function exec(cmd: string, opts: { cwd?: string } = {}): Promise<void> {
   });
 }
 
-async function runTask(task: string, id: number) {
+export async function runTask(task: string, id: number) {
   const base = path.resolve('.worktrees');
   const dir = path.join(base, `agent-${id}`);
   await fs.promises.mkdir(base, { recursive: true });
@@ -32,7 +33,7 @@ async function runTask(task: string, id: number) {
   }
 }
 
-async function runAgents(tasks: string[], count: number) {
+export async function runAgents(tasks: string[], count: number) {
   let next = 0;
   async function worker(id: number) {
     while (true) {
@@ -46,7 +47,7 @@ async function runAgents(tasks: string[], count: number) {
   await Promise.all(Array.from({ length: count }, (_, i) => worker(i)));
 }
 
-async function main() {
+export async function main() {
   const [, , cmd, file, ...rest] = process.argv;
   if (cmd !== 'start' || !file) {
     console.error('Usage: aoa start <tasks.json> [-n agents]');
@@ -61,7 +62,9 @@ async function main() {
   await runAgents(tasks, agents);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
