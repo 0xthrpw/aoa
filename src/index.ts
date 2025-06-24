@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -13,17 +13,42 @@ interface ClaudeConfig {
 
 interface Config {
   claude?: ClaudeConfig;
+  projectDir?: string;
 }
 
-function loadConfig(configPath?: string): Config {
-  if (!configPath) return {};
+function loadConfig(configPath?: string, projectDir?: string): Config {
+  if (!configPath) {
+    // Try to find config in project directory
+    if (projectDir) {
+      const projectConfigPath = path.join(projectDir, 'aoa.config.json');
+      if (fs.existsSync(projectConfigPath)) {
+        configPath = projectConfigPath;
+      } else {
+        // Try package.json aoa field
+        const packageJsonPath = path.join(projectDir, 'package.json');
+        if (fs.existsSync(packageJsonPath)) {
+          try {
+            const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+            if (packageJson.aoa) {
+              return { ...packageJson.aoa, projectDir };
+            }
+          } catch {
+            // Ignore package.json parsing errors
+          }
+        }
+      }
+    }
+  }
+  
+  if (!configPath) return { projectDir };
   
   try {
     const configContent = fs.readFileSync(configPath, 'utf8');
-    return JSON.parse(configContent) as Config;
+    const config = JSON.parse(configContent) as Config;
+    return { ...config, projectDir };
   } catch (error) {
     console.warn(`Warning: Could not load config from ${configPath}:`, error);
-    return {};
+    return { projectDir };
   }
 }
 
@@ -86,36 +111,33 @@ function exec(cmd: string, opts: { cwd?: string; agentId?: number } = {}): Promi
     
     // For Claude commands running in agents, use separate stdio to avoid terminal interference
     const isClaudeCommand = cmd.includes('claude');
-    const stdio = isClaudeCommand && agentId !== undefined 
-      ? ['ignore', 'pipe', 'pipe'] as const  // stdin ignored, stdout/stderr piped
-      : 'inherit';
     
-    const child = spawn(cmd, { shell: true, stdio, ...spawnOpts });
-    
-    // Handle output for Claude commands
     if (isClaudeCommand && agentId !== undefined) {
+      // Use piped stdio for Claude commands to capture output
+      const child = spawn(cmd, [], { 
+        shell: true, 
+        stdio: ['ignore', 'pipe', 'pipe'],
+        ...spawnOpts 
+      });
+      
       let stdout = '';
       let stderr = '';
       
-      if (child.stdout) {
-        child.stdout.on('data', (data) => {
-          const output = data.toString();
-          stdout += output;
-          // Stream output in real-time with agent prefix
-          process.stdout.write(`[Agent ${agentId}] ${output}`);
-        });
-      }
+      child.stdout?.on('data', (data: Buffer) => {
+        const output = data.toString();
+        stdout += output;
+        // Stream output in real-time with agent prefix
+        process.stdout.write(`[Agent ${agentId}] ${output}`);
+      });
       
-      if (child.stderr) {
-        child.stderr.on('data', (data) => {
-          const output = data.toString();
-          stderr += output;
-          // Stream error output in real-time with agent prefix
-          process.stderr.write(`[Agent ${agentId}] ${output}`);
-        });
-      }
+      child.stderr?.on('data', (data: Buffer) => {
+        const output = data.toString();
+        stderr += output;
+        // Stream error output in real-time with agent prefix
+        process.stderr.write(`[Agent ${agentId}] ${output}`);
+      });
       
-      child.on('close', (code) => {
+      child.on('close', (code: number | null) => {
         if (code === 0) {
           console.log(`[Agent ${agentId}] Task completed successfully`);
           resolve();
@@ -125,7 +147,14 @@ function exec(cmd: string, opts: { cwd?: string; agentId?: number } = {}): Promi
         }
       });
     } else {
-      child.on('close', (code) => {
+      // Use inherit stdio for non-Claude commands
+      const child = spawn(cmd, [], { 
+        shell: true, 
+        stdio: 'inherit',
+        ...spawnOpts 
+      });
+      
+      child.on('close', (code: number | null) => {
         if (code === 0) resolve();
         else reject(new Error(`${cmd} exited with code ${code}`));
       });
@@ -134,11 +163,12 @@ function exec(cmd: string, opts: { cwd?: string; agentId?: number } = {}): Promi
 }
 
 async function runTask(task: string, id: number, config: Config = {}) {
-  const base = path.resolve('.worktrees');
+  const projectDir = config.projectDir || process.cwd();
+  const base = path.resolve(projectDir, '.worktrees');
   const dir = path.join(base, `agent-${id}`);
   await fs.promises.mkdir(base, { recursive: true });
   // create isolated worktree
-  await exec(`git worktree add ${dir}`);
+  await exec(`git worktree add ${dir}`, { cwd: projectDir });
   try {
     // Check if the worktree contains a git repo and pull from master if it does
     if (await isGitRepo(dir) && await hasRemoteOrigin(dir)) {
@@ -152,13 +182,16 @@ async function runTask(task: string, id: number, config: Config = {}) {
     await exec('git add -A', { cwd: dir });
     await exec(`git commit -m "agent-${id}: ${task}"`, { cwd: dir });
     // merge back to main workspace
-    await exec(`git merge --ff-only ${path.basename(dir)}`, { cwd: '.' });
+    await exec(`git merge --ff-only ${path.basename(dir)}`, { cwd: projectDir });
   } finally {
-    await exec(`git worktree remove ${dir}`);
+    await exec(`git worktree remove ${dir}`, { cwd: projectDir });
   }
 }
 
 async function runAgents(tasks: string[], count: number, config: Config = {}) {
+  const projectDir = config.projectDir || process.cwd();
+  console.log(`Working in project directory: ${projectDir}`);
+  
   let next = 0;
   async function worker(id: number) {
     while (true) {
@@ -172,15 +205,32 @@ async function runAgents(tasks: string[], count: number, config: Config = {}) {
   await Promise.all(Array.from({ length: count }, (_, i) => worker(i)));
 }
 
-async function main() {
+async function validateProjectDirectory(projectDir: string): Promise<void> {
+  if (!fs.existsSync(projectDir)) {
+    throw new Error(`Project directory does not exist: ${projectDir}`);
+  }
+  
+  const stat = fs.statSync(projectDir);
+  if (!stat.isDirectory()) {
+    throw new Error(`Path is not a directory: ${projectDir}`);
+  }
+  
+  // Check if it's a git repository
+  if (!await isGitRepo(projectDir)) {
+    console.warn(`Warning: ${projectDir} is not a git repository. Some features may not work as expected.`);
+  }
+}
+
+export async function main() {
   const [, , cmd, file, ...rest] = process.argv;
   if (cmd !== 'start' || !file) {
-    console.error('Usage: aoa start <tasks.json> [-n agents] [-c config.json]');
+    console.error('Usage: aoa start <tasks.json> [-n agents] [-c config.json] [--project-dir path]');
     process.exit(1);
   }
   
   let agents = 1;
   let configPath: string | undefined;
+  let projectDir: string | undefined;
   
   // Parse command line arguments
   const n = rest.indexOf('-n');
@@ -193,12 +243,32 @@ async function main() {
     configPath = rest[c + 1];
   }
   
-  const config = loadConfig(configPath);
-  const tasks = JSON.parse(fs.readFileSync(file, 'utf8')) as string[];
+  const p = rest.indexOf('--project-dir');
+  if (p !== -1 && rest[p + 1]) {
+    projectDir = path.resolve(rest[p + 1]);
+  } else {
+    projectDir = process.cwd();
+  }
+  
+  // Validate the project directory
+  await validateProjectDirectory(projectDir);
+  
+  const config = loadConfig(configPath, projectDir);
+  
+  // Resolve task file path relative to project directory or current directory
+  const taskFilePath = path.isAbsolute(file) ? file : path.resolve(projectDir, file);
+  if (!fs.existsSync(taskFilePath)) {
+    throw new Error(`Task file does not exist: ${taskFilePath}`);
+  }
+  
+  const tasks = JSON.parse(fs.readFileSync(taskFilePath, 'utf8')) as string[];
   await runAgents(tasks, agents, config);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Export for CLI usage, but don't run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

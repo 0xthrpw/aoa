@@ -1,0 +1,10 @@
+{
+  "claude": {
+    "model": "claude-3-5-sonnet-20241022",
+    "maxTokens": 2048,
+    "temperature": 0.3,
+    "additionalArgs": [
+      "--memory-path=./memory"
+    ]
+  }
+}

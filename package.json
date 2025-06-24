@@ -1,13 +1,56 @@
 {
-  "name": "aoa",
-  "module": "index.ts",
-  "scripts": {
-    "start": "bun run ./src/index.ts"
+  "name": "army-of-agents",
+  "version": "1.0.0",
+  "description": "A TypeScript CLI tool that dispatches multiple Claude agents to work on tasks in parallel using Git worktrees",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "aoa": "dist/cli.js"
   },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE",
+    "CLAUDE.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "start": "bun run ./src/index.ts",
+    "dev": "bun run ./src/index.ts",
+    "prepublishOnly": "npm run build",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": [
+    "claude",
+    "ai",
+    "agents",
+    "parallel",
+    "git",
+    "worktree",
+    "cli",
+    "automation",
+    "typescript"
+  ],
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/army-of-agents.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/army-of-agents/issues"
+  },
+  "homepage": "https://github.com/yourusername/army-of-agents#readme",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/node": "^18.0.0"
+    "@types/node": "^18.0.0",
+    "typescript": "^5.0.0"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
