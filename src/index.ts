@@ -20,8 +20,8 @@ async function runTask(task: string, id: number) {
   // create isolated worktree
   await exec(`git worktree add ${dir}`);
   try {
-    // run codex cli with the task prompt
-    await exec(`codex "${task}"`, { cwd: dir });
+    // run claude cli with the task prompt
+    await exec(`claude "${task}"`, { cwd: dir });
     // commit changes inside worktree
     await exec('git add -A', { cwd: dir });
     await exec(`git commit -m "agent-${id}: ${task}"`, { cwd: dir });
@@ -47,7 +47,14 @@ async function runAgents(tasks: string[], count: number) {
 }
 
 async function main() {
-    console.log(process.argv)
+  // Check for Claude authentication
+//   if (!process.env.ANTHROPIC_API_KEY) {
+//     console.error('Error: ANTHROPIC_API_KEY environment variable is required for Claude Code authentication');
+//     console.error('Please set your API key: export ANTHROPIC_API_KEY=your_api_key_here');
+//     process.exit(1);
+//   }
+
+  console.log(process.argv)
   const [, , file, ...rest] = process.argv;
   if (!file) {
     console.error('Usage: bun run start <tasks.json> [-n agents]');
