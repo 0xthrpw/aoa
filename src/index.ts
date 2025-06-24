@@ -51,6 +51,35 @@ function buildClaudeCommand(task: string, config: ClaudeConfig = {}): string {
   return args.join(' ');
 }
 
+async function isGitRepo(dir: string): Promise<boolean> {
+  try {
+    await exec('git rev-parse --git-dir', { cwd: dir });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function hasRemoteOrigin(dir: string): Promise<boolean> {
+  try {
+    await exec('git remote get-url origin', { cwd: dir });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function pullMasterBranch(dir: string, agentId: number): Promise<void> {
+  try {
+    console.log(`[Agent ${agentId}] Pulling latest changes from master...`);
+    await exec('git fetch origin', { cwd: dir });
+    await exec('git pull origin master', { cwd: dir });
+    console.log(`[Agent ${agentId}] Successfully pulled latest changes`);
+  } catch (error) {
+    console.warn(`[Agent ${agentId}] Warning: Could not pull from master:`, error);
+  }
+}
+
 function exec(cmd: string, opts: { cwd?: string; agentId?: number } = {}): Promise<void> {
   return new Promise((resolve, reject) => {
     const { agentId, ...spawnOpts } = opts;
@@ -111,6 +140,11 @@ async function runTask(task: string, id: number, config: Config = {}) {
   // create isolated worktree
   await exec(`git worktree add ${dir}`);
   try {
+    // Check if the worktree contains a git repo and pull from master if it does
+    if (await isGitRepo(dir) && await hasRemoteOrigin(dir)) {
+      await pullMasterBranch(dir, id);
+    }
+    
     // run claude cli with the task prompt and config
     const claudeCmd = buildClaudeCommand(task, config.claude);
     await exec(claudeCmd, { cwd: dir, agentId: id });
