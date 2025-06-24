@@ -51,13 +51,56 @@ function buildClaudeCommand(task: string, config: ClaudeConfig = {}): string {
   return args.join(' ');
 }
 
-function exec(cmd: string, opts: { cwd?: string } = {}): Promise<void> {
+function exec(cmd: string, opts: { cwd?: string; agentId?: number } = {}): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, { shell: true, stdio: 'inherit', ...opts });
-    child.on('close', (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`${cmd} exited with code ${code}`));
-    });
+    const { agentId, ...spawnOpts } = opts;
+    
+    // For Claude commands running in agents, use separate stdio to avoid terminal interference
+    const isClaudeCommand = cmd.includes('claude');
+    const stdio = isClaudeCommand && agentId !== undefined 
+      ? ['ignore', 'pipe', 'pipe'] as const  // stdin ignored, stdout/stderr piped
+      : 'inherit';
+    
+    const child = spawn(cmd, { shell: true, stdio, ...spawnOpts });
+    
+    // Handle output for Claude commands
+    if (isClaudeCommand && agentId !== undefined) {
+      let stdout = '';
+      let stderr = '';
+      
+      if (child.stdout) {
+        child.stdout.on('data', (data) => {
+          const output = data.toString();
+          stdout += output;
+          // Stream output in real-time with agent prefix
+          process.stdout.write(`[Agent ${agentId}] ${output}`);
+        });
+      }
+      
+      if (child.stderr) {
+        child.stderr.on('data', (data) => {
+          const output = data.toString();
+          stderr += output;
+          // Stream error output in real-time with agent prefix
+          process.stderr.write(`[Agent ${agentId}] ${output}`);
+        });
+      }
+      
+      child.on('close', (code) => {
+        if (code === 0) {
+          console.log(`[Agent ${agentId}] Task completed successfully`);
+          resolve();
+        } else {
+          console.error(`[Agent ${agentId}] Task failed with exit code ${code}`);
+          reject(new Error(`Agent ${agentId}: ${cmd} exited with code ${code}`));
+        }
+      });
+    } else {
+      child.on('close', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`${cmd} exited with code ${code}`));
+      });
+    }
   });
 }
 
@@ -70,7 +113,7 @@ async function runTask(task: string, id: number, config: Config = {}) {
   try {
     // run claude cli with the task prompt and config
     const claudeCmd = buildClaudeCommand(task, config.claude);
-    await exec(claudeCmd, { cwd: dir });
+    await exec(claudeCmd, { cwd: dir, agentId: id });
     // commit changes inside worktree
     await exec('git add -A', { cwd: dir });
     await exec(`git commit -m "agent-${id}: ${task}"`, { cwd: dir });
