@@ -59,6 +59,8 @@ aoa start <tasks.json> [options]
 - `-n <count>`: Number of agents to run (default: 1)
 - `-c <config.json>`: Path to configuration file
 - `--project-dir <path>`: Target project directory (default: current directory)
+- `--interactive`: Enable interactive mode for agent questions (single agent only)
+- `--auto-approve`: Auto-approve all agent actions without prompting
 
 ### Examples
 ```bash
@@ -70,6 +72,12 @@ aoa start ./my-tasks.json -c ./aoa-config.json --project-dir /path/to/project
 
 # Run single agent with specific project
 aoa start tasks.json --project-dir ~/my-react-app
+
+# Interactive mode - respond to agent questions
+npx aoa start tasks.json --interactive
+
+# Auto-approve mode - no permission prompts
+npx aoa start tasks.json --auto-approve -n 3
 ```
 
 ## Configuration
@@ -82,11 +90,14 @@ Create `aoa.config.json` in your project root:
     "model": "claude-3-5-sonnet-20241022",
     "maxTokens": 4096,
     "temperature": 0.7,
+    "autoApprove": true,
     "additionalArgs": [
       "--memory-path=./memory",
       "--verbose"
     ]
-  }
+  },
+  "autoApprove": false,
+  "interactive": false
 }
 ```
 
@@ -107,7 +118,28 @@ Alternatively, add configuration to your `package.json`:
 - `model`: Claude model to use
 - `maxTokens`: Maximum response tokens
 - `temperature`: Creativity level (0.0-1.0)
+- `autoApprove`: Auto-approve Claude actions (boolean)
 - `additionalArgs`: Extra CLI arguments for Claude
+- `interactive`: Enable interactive mode globally (boolean)
+
+### Execution Modes
+
+**🔄 Interactive Mode** (`--interactive`)
+- Single agent only (automatically sets `-n 1`)
+- Pauses for user input when Claude asks questions
+- Full terminal interaction with Claude
+- Best for complex tasks requiring human oversight
+
+**🤖 Auto-Approve Mode** (`--auto-approve`)
+- Agents proceed without asking permission for file operations
+- Works with multiple agents
+- Faster execution for trusted tasks
+- Can be set globally in config or per-command
+- **⚠️ Use with caution**: Automatically grants file write/edit permissions
+
+**📊 Standard Mode** (default)
+- Agents run autonomously but may pause on unclear instructions
+- Balanced approach for most use cases
 
 ## Authentication
 

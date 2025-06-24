@@ -16,6 +16,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "postbuild": "chmod +x dist/cli.js",
     "build:watch": "tsc --watch",
     "start": "bun run ./src/index.ts",
     "dev": "bun run ./src/index.ts",
