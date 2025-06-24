@@ -30,10 +30,10 @@ bun install
 export ANTHROPIC_API_KEY=your_api_key_here
 
 # Run the CLI tool
-bun run start <tasks.json> [-n <agent-count>]
+bun run start <tasks.json> [-n <agent-count>] [-c <config.json>]
 
 # Direct execution
-bun run ./src/index.ts <tasks.json> [-n <agent-count>]
+bun run ./src/index.ts <tasks.json> [-n <agent-count>] [-c <config.json>]
 ```
 
 ## Task File Format
@@ -45,6 +45,31 @@ Tasks are defined as JSON arrays of string prompts:
   "Write unit tests for the CLI"
 ]
 ```
+
+## Configuration File Format
+
+Claude parameters can be configured using a JSON configuration file:
+```json
+{
+  "claude": {
+    "model": "claude-3-5-sonnet-20241022",
+    "maxTokens": 4096,
+    "temperature": 0.7,
+    "timeout": 300000,
+    "additionalArgs": [
+      "--memory-path=./memory",
+      "--verbose"
+    ]
+  }
+}
+```
+
+Available configuration options:
+- `model`: Claude model to use (e.g., "claude-3-5-sonnet-20241022")
+- `maxTokens`: Maximum number of tokens in response
+- `temperature`: Controls randomness (0.0-1.0)
+- `timeout`: Command timeout in milliseconds
+- `additionalArgs`: Array of additional CLI arguments to pass to Claude
 
 ## Git Worktree Management
 
