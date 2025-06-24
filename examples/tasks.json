@@ -1,4 +1,6 @@
 [
-  "Example task 1",
-  "Example task 2"
+  "update the README file with the latest changes",
+  "add a new example for the latest feature",
+  "add a cli ui for running tasks that displays time elapsed",
+  "update the package.json file with start, build, dev and test commands"
 ]

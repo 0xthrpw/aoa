@@ -47,9 +47,10 @@ async function runAgents(tasks: string[], count: number) {
 }
 
 async function main() {
-  const [, , cmd, file, ...rest] = process.argv;
-  if (cmd !== 'start' || !file) {
-    console.error('Usage: aoa start <tasks.json> [-n agents]');
+    console.log(process.argv)
+  const [, , file, ...rest] = process.argv;
+  if (!file) {
+    console.error('Usage: bun run start <tasks.json> [-n agents]');
     process.exit(1);
   }
   let agents = 1;
@@ -57,6 +58,7 @@ async function main() {
   if (n !== -1 && rest[n + 1]) {
     agents = parseInt(rest[n + 1], 10);
   }
+  console.log(`file: ${file}, agents: ${agents}`);
   const tasks = JSON.parse(fs.readFileSync(file, 'utf8')) as string[];
   await runAgents(tasks, agents);
 }
