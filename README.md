@@ -1,6 +1,6 @@
 # aoa
 
-Army of Agents (AOA) is a simple tool for dispatching multiple Codex
+Army of Agents (AOA) is a simple tool for dispatching multiple Claude
 agents to work on a list of tasks in parallel.  The CLI is written in
 TypeScript and coordinates the agents so they do not modify the same
 workspace concurrently.
@@ -13,7 +13,7 @@ workspace concurrently.
 
 2. **Task description file**
    - Tasks are stored in a JSON file (see `examples/tasks.json`).
-   - Each entry is a string prompt that will be forwarded to a Codex
+   - Each entry is a string prompt that will be forwarded to a Claude
      agent.
 
 3. **Starting a job**
@@ -26,7 +26,7 @@ workspace concurrently.
      conflict.
 
 5. **Agent execution**
-   - Each agent receives a task, runs `codex` in its worktree and waits for it to finish.
+   - Each agent receives a task, runs `claude` in its worktree and waits for it to finish.
    - When all tasks are processed, worktrees are merged back sequentially.
 
 6. **Simple locking**
@@ -43,6 +43,9 @@ workspace concurrently.
 
 ```bash
 bun install
+
+# Set up authentication
+export ANTHROPIC_API_KEY=your_api_key_here
 ```
 
 2. Create a JSON file describing tasks.  Example:
@@ -60,4 +63,4 @@ bun install
 bun run aoa start tasks.json -n 2
 ```
 
-This will spawn two Codex agents working in parallel on the listed tasks.
+This will spawn two Claude agents working in parallel on the listed tasks.

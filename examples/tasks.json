@@ -1,6 +1,6 @@
 [
-  "update the README file with the latest changes",
-  "add a new example for the latest feature",
-  "add a cli ui for running tasks that displays time elapsed",
-  "update the package.json file with start, build, dev and test commands"
+  "add error handling for failed claude executions",
+  "add a configuration file option for claude parameters",
+  "implement progress tracking and logging for agent execution",
+  "add validation for task file format and content"
 ]

@@ -2,7 +2,7 @@
   "name": "aoa",
   "module": "index.ts",
   "scripts": {
-    "start": "bun run ./src/index.ts",
+    "start": "bun run ./src/index.ts"
   },
   "type": "module",
   "devDependencies": {
