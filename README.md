@@ -1,66 +1,257 @@
-# aoa
+# Army of Agents (AOA)
 
-Army of Agents (AOA) is a simple tool for dispatching multiple Claude
-agents to work on a list of tasks in parallel.  The CLI is written in
-TypeScript and coordinates the agents so they do not modify the same
-workspace concurrently.
+A TypeScript CLI tool that dispatches multiple Claude agents to work on tasks in parallel using Git worktrees. AOA allows you to install it as a package and use it to modify any project's files through coordinated AI agents.
 
-## Design Plan
+## Features
 
-1. **Project setup**
-   - Node/TypeScript project using `bun` for running scripts.
-   - The CLI entry point is `src/index.ts`.
+- 🤖 **Multiple Claude Agents**: Run multiple Claude instances in parallel
+- 🔀 **Git Worktree Isolation**: Each agent works in isolated Git worktrees
+- 📦 **Package Installation**: Install globally or locally in any project
+- ⚙️ **Configurable**: Support for project-specific configurations
+- 🔄 **Auto-sync**: Automatically pulls latest changes from master branch
+- 🎯 **Project-aware**: Works with any Git repository
 
-2. **Task description file**
-   - Tasks are stored in a JSON file (see `examples/tasks.json`).
-   - Each entry is a string prompt that will be forwarded to a Claude
-     agent.
+## Installation
 
-3. **Starting a job**
-   - Run `bun run aoa start <tasks.json> -n <agents>` to start a job.
-   - The number of agents defaults to `1` when not specified.
-
-4. **Workspace isolation**
-   - Every agent works in its own Git worktree under `.worktrees/agent-X`.
-   - Worktrees are created from the current branch so changes do not
-     conflict.
-
-5. **Agent execution**
-   - Each agent receives a task, runs `claude` in its worktree and waits for it to finish.
-   - When all tasks are processed, worktrees are merged back sequentially.
-
-6. **Simple locking**
-   - Only one merge occurs at a time to prevent conflicts.
-   - Merges use fast-forward or create a new commit if needed.
-
-7. **Extending the system**
-   - Add more CLI commands (e.g. `status`, `stop`).
-   - Implement smarter task distribution or support for different prompts per agent.
-
-## Usage
-
-1. Install dependencies:
-
+### Global Installation
 ```bash
-bun install
-
-# Set up authentication
-export ANTHROPIC_API_KEY=your_api_key_here
+npm install -g army-of-agents
 ```
 
-2. Create a JSON file describing tasks.  Example:
+### Local Installation (Recommended)
+```bash
+cd /path/to/your/project
+npm install --save-dev army-of-agents
+```
 
+## Quick Start
+
+### 1. Create a Task File
+Create `tasks.json` in your project:
 ```json
 [
-  "Add logging to the project",
-  "Write unit tests for the CLI"
+  "Add error handling to the API endpoints",
+  "Update documentation for the new features",
+  "Add unit tests for the utility functions"
 ]
 ```
 
-3. Start agents:
-
+### 2. Run AOA
 ```bash
-bun run aoa start tasks.json -n 2
+# Global installation
+aoa start tasks.json --project-dir /path/to/your/project
+
+# Local installation (from project directory)
+npx aoa start tasks.json
+
+# Or via npm scripts
+npm run aoa start tasks.json
 ```
 
-This will spawn two Claude agents working in parallel on the listed tasks.
+## Usage
+
+### Basic Usage
+```bash
+aoa start <tasks.json> [options]
+```
+
+### Options
+- `-n <count>`: Number of agents to run (default: 1)
+- `-c <config.json>`: Path to configuration file
+- `--project-dir <path>`: Target project directory (default: current directory)
+- `--interactive`: Enable interactive mode for agent questions (single agent only)
+- `--auto-approve`: Auto-approve all agent actions without prompting
+
+### Examples
+```bash
+# Run 3 agents on tasks.json in current directory
+npx aoa start tasks.json -n 3
+
+# Run with custom config in different project
+aoa start ./my-tasks.json -c ./aoa-config.json --project-dir /path/to/project
+
+# Run single agent with specific project
+aoa start tasks.json --project-dir ~/my-react-app
+
+# Interactive mode - respond to agent questions
+npx aoa start tasks.json --interactive
+
+# Auto-approve mode - no permission prompts
+npx aoa start tasks.json --auto-approve -n 3
+```
+
+## Configuration
+
+### Configuration File
+Create `aoa.config.json` in your project root:
+```json
+{
+  "claude": {
+    "model": "claude-3-5-sonnet-20241022",
+    "maxTokens": 4096,
+    "temperature": 0.7,
+    "autoApprove": true,
+    "additionalArgs": [
+      "--memory-path=./memory",
+      "--verbose"
+    ]
+  },
+  "autoApprove": false,
+  "interactive": false
+}
+```
+
+### package.json Configuration
+Alternatively, add configuration to your `package.json`:
+```json
+{
+  "aoa": {
+    "claude": {
+      "model": "claude-3-5-sonnet-20241022",
+      "maxTokens": 2048
+    }
+  }
+}
+```
+
+### Configuration Options
+- `model`: Claude model to use
+- `maxTokens`: Maximum response tokens
+- `temperature`: Creativity level (0.0-1.0)
+- `autoApprove`: Auto-approve Claude actions (boolean)
+- `additionalArgs`: Extra CLI arguments for Claude
+- `interactive`: Enable interactive mode globally (boolean)
+
+### Execution Modes
+
+**🔄 Interactive Mode** (`--interactive`)
+- Single agent only (automatically sets `-n 1`)
+- Pauses for user input when Claude asks questions
+- Full terminal interaction with Claude
+- Best for complex tasks requiring human oversight
+
+**🤖 Auto-Approve Mode** (`--auto-approve`)
+- Agents proceed without asking permission for file operations
+- Works with multiple agents
+- Faster execution for trusted tasks
+- Can be set globally in config or per-command
+- **⚠️ Use with caution**: Automatically grants file write/edit permissions
+
+**📊 Standard Mode** (default)
+- Agents run autonomously but may pause on unclear instructions
+- Balanced approach for most use cases
+
+## Authentication
+
+AOA requires the Claude CLI to be installed and authenticated:
+
+```bash
+# Install Claude CLI (if not already installed)
+npm install -g @anthropic-ai/claude-cli
+
+# Authenticate (if not already done)
+claude auth login
+```
+
+## How It Works
+
+1. **Worktree Creation**: AOA creates isolated Git worktrees for each agent
+2. **Task Distribution**: Tasks are distributed among available agents
+3. **Parallel Execution**: Each agent runs Claude with its assigned task
+4. **Auto-sync**: Agents automatically pull latest changes before starting
+5. **Sequential Merging**: Changes are merged back sequentially to prevent conflicts
+6. **Cleanup**: Worktrees are automatically cleaned up after completion
+
+## Project Integration
+
+### Adding to Existing Projects
+```bash
+cd your-existing-project
+npm install --save-dev army-of-agents
+
+# Create tasks file
+echo '["Add TypeScript definitions", "Update README"]' > aoa-tasks.json
+
+# Run
+npx aoa start aoa-tasks.json -n 2
+```
+
+### npm Scripts Integration
+Add to your `package.json`:
+```json
+{
+  "scripts": {
+    "aoa": "aoa start",
+    "aoa:dev": "aoa start dev-tasks.json -n 3",
+    "aoa:docs": "aoa start doc-tasks.json -c aoa-docs.config.json"
+  }
+}
+```
+
+## Task File Examples
+
+### Simple Tasks
+```json
+[
+  "Fix TypeScript errors in src/utils",
+  "Add JSDoc comments to public API functions",
+  "Update package.json dependencies"
+]
+```
+
+### Complex Tasks
+```json
+[
+  "Implement user authentication using JWT tokens with proper error handling",
+  "Create comprehensive unit tests for the payment processing module",
+  "Refactor the database layer to use async/await pattern consistently"
+]
+```
+
+## Safety Features
+
+- **Git Repository Validation**: Ensures target directory is a Git repository
+- **Directory Validation**: Validates project directory exists and is accessible
+- **Task File Validation**: Ensures task file exists and is valid JSON
+- **Worktree Isolation**: Each agent works in complete isolation
+- **Error Handling**: Graceful handling of agent failures and cleanup
+
+## Troubleshooting
+
+### Common Issues
+
+**"claude: command not found"**
+- Install Claude CLI: `npm install -g @anthropic-ai/claude-cli`
+- Ensure it's in your PATH
+
+**"Project directory is not a git repository"**
+- Initialize git: `git init`
+- Or specify a different project directory
+
+**"Task file does not exist"**
+- Check the path to your tasks.json file
+- Use absolute paths if needed
+
+### Debug Mode
+```bash
+# Run with verbose output
+aoa start tasks.json -c config.json --verbose
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Links
+
+- [Repository](https://github.com/yourusername/army-of-agents)
+- [Issues](https://github.com/yourusername/army-of-agents/issues)
+- [Claude CLI Documentation](https://docs.anthropic.com/claude/docs)

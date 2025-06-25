@@ -1,0 +1,43 @@
+# Source files
+src/
+*.ts
+!dist/
+
+# Development files
+tsconfig.json
+bun.lockb
+.worktrees/
+
+# Testing and examples
+examples/
+test/
+tests/
+
+# Development dependencies
+node_modules/
+.npm/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Git
+.git/
+.gitignore
